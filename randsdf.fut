@@ -57,23 +57,24 @@ module lys : lys with text_content = text_content = {
     { time: f32
     , h: i64
     , w: i64
-    , weights: {a: f32, b: f32}
+    , rng: rng_engine.rng
     }
 
   def grab_mouse = false
 
   def init (seed: u32) (h: i64) (w: i64) : state =
     let rng = rng_engine.rng_from_seed [i32.u32 seed]
-    let (rng, a) = dist.rand (0, 1) rng
-    let (rng, b) = dist.rand (0, 1) rng
-    let _ = rng
     in { time = 0
        , w
        , h
-       , weights = {a, b}
+       , rng
        }
 
   def render (s: state) =
+    let rng = s.rng
+    let (rng, a) = dist.rand (0, 1) rng
+    let (rng, b) = dist.rand (0, 1) rng
+    let _ = rng
     let uv (p: vec3): (f32, f32) =
       let d = vec3.normalise p
       in ( 0.5 + f32.atan2 d.x d.z / (2 * f32.pi)
@@ -85,7 +86,7 @@ module lys : lys with text_content = text_content = {
         (1 + f32.sin (u * 20 * f32.pi + t) * f32.sin (t)) / 2
         + (1 + f32.cos (v * 20 * f32.pi + t) * f32.sin (t)) / 2
       let r_b = f32.sin (u * t + u)
-      in s.weights.a * r_a + s.weights.b * r_b
+      in a * r_a + b * r_b
     let sdf (t: f32) (p: vec3): f32 = vec3.norm p - radius_at t p
     in blob sdf s.w s.h s.time
 
