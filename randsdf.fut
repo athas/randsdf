@@ -52,13 +52,11 @@ def blob (sdf: sdf) (width: i64) (height: i64) : [height][width]u32 =
          let light_dir = vec3.normalise ({x = 10, y = 10, z = 10} vec3.- hit)
          let normal = distance_field_normal sdf hit
          let light_intensity = light_dir `vec3.dot` normal
-         let {u = u, v = v} = sphere_uv hit
+         let {u, v} = sphere_uv hit
          let x = i32.f32 (u * 10) % 2
          let y = i32.f32 (v * 10) % 2
-         in argb.mix 1
-                     (grey light_intensity)
-                     1
-                     (if x ^ y == 0 then argb.red else argb.blue)
+         in argb.scale (if x ^ y == 0 then argb.red else argb.blue)
+                       light_intensity
   in tabulate_2d height width f
 
 type text_content = ()
