@@ -84,8 +84,9 @@ module lys : lys with text_content = text_content = {
 
   def render (s: state) =
     let rng = s.rng
-    let (rng, a) = dist.rand (0, 1) rng
-    let (rng, b) = dist.rand (0, 1) rng
+    let (rng, a) = dist.rand (-1, 1) rng
+    let (rng, b) = dist.rand (-1, 1) rng
+    let (rng, accel) = dist.rand (0.1, f32.e) rng
     let _ = rng
     let uv (p: vec3): (f32, f32) =
       let d = vec3.normalise p
@@ -100,7 +101,7 @@ module lys : lys with text_content = text_content = {
       let r_b = f32.sin (u * t + u)
       in a * r_a + b * r_b
     let sdf (t: f32) (p: vec3): f32 = vec3.norm p - radius_at t p
-    in blob (sdf s.time) s.w s.h
+    in blob (sdf (accel ** s.time)) s.w s.h
 
   def resize (h: i64) (w: i64) (s: state) =
     s with h = h with w = w
