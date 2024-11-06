@@ -1,22 +1,22 @@
 import "lib/github.com/diku-dk/lys/lys"
 import "lib/github.com/athas/vector/vspace"
+import "lib/github.com/athas/matte/colour"
 import "lib/github.com/diku-dk/cpprandom/random"
 
-def grey (light: f32) : u32 =
-  let x = u32.f32 (255 * f32.min 1 (f32.max 0 light))
-  in (x << 16) | (x << 8) | x
+def grey (light: f32) : argb.colour =
+  argb.gray (f32.min 1 (f32.max 0 light))
 
 module vec3 = mk_vspace_3d f32
 type vec3 = vec3.vector
 
-type^ sdf = f32 -> vec3 -> f32
+type^ sdf = vec3 -> f32
 
 type hit = #hit vec3 | #miss
 
-def trace (sdf: sdf) (t: f32) (orig: vec3) (dir: vec3) : hit =
+def trace (sdf: sdf) (orig: vec3) (dir: vec3) : hit =
   let not_done (i, _) = i < 128
   let march (i, pos) =
-    let d = sdf t pos
+    let d = sdf pos
     in if d < 0
        then (1337, pos)
        else (i + 1, pos vec3.+ ((f32.max (d * 0.1) 0.01) `vec3.scale` dir))
@@ -25,8 +25,8 @@ def trace (sdf: sdf) (t: f32) (orig: vec3) (dir: vec3) : hit =
 
 def grad f x = vjp f x 1f32
 
-def distance_field_normal sdf t pos =
-  vec3.normalise (grad (sdf t) pos)
+def distance_field_normal sdf pos =
+  vec3.normalise (grad sdf pos)
 
 def camera_ray width height i j =
   let fov = f32.pi / 3
@@ -35,16 +35,30 @@ def camera_ray width height i j =
   let z = -(f32.i64 height) / (2 * f32.tan (fov / 2))
   in vec3.normalise {x, y, z}
 
-def blob (sdf: sdf) (width: i64) (height: i64) (t: f32) : [height][width]u32 =
+def sphere_uv (p: vec3) : {u: f32, v: f32} =
+  let phi = f32.atan2 p.z p.x
+  let theta = f32.asin p.y
+  in { u = 1 - (phi + f32.pi) / (2 * f32.pi)
+     , v = (theta + f32.pi / 2) / f32.pi
+     }
+
+def blob (sdf: sdf) (width: i64) (height: i64) : [height][width]u32 =
   let f j i =
     let dir = camera_ray width height i j
-    in match trace sdf t {x = 0, y = 0, z = 3} dir
+    in match trace sdf {x = 0, y = 0, z = 3} dir
        case #miss  ->
          0xFFFFFF
        case #hit hit ->
          let light_dir = vec3.normalise ({x = 10, y = 10, z = 10} vec3.- hit)
-         let light_intensity = light_dir `vec3.dot` distance_field_normal sdf t hit
-         in grey light_intensity
+         let normal = distance_field_normal sdf hit
+         let light_intensity = light_dir `vec3.dot` normal
+         let {u = u, v = v} = sphere_uv hit
+         let x = i32.f32 (u * 10) % 2
+         let y = i32.f32 (v * 10) % 2
+         in argb.mix 1
+                     (grey light_intensity)
+                     1
+                     (if x ^ y == 0 then argb.red else argb.blue)
   in tabulate_2d height width f
 
 type text_content = ()
@@ -88,7 +102,7 @@ module lys : lys with text_content = text_content = {
       let r_b = f32.sin (u * t + u)
       in a * r_a + b * r_b
     let sdf (t: f32) (p: vec3): f32 = vec3.norm p - radius_at t p
-    in blob sdf s.w s.h s.time
+    in blob (sdf s.time) s.w s.h
 
   def resize (h: i64) (w: i64) (s: state) =
     s with h = h with w = w
