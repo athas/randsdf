@@ -82,6 +82,12 @@ module lys : lys with text_content = text_content = {
        , rng
        }
 
+  def norm2d x y = f32.sqrt (x * x + y * y)
+
+  def torus x y (p: vec3) =
+    let q = {x = norm2d p.x p.z - x, y = p.y}
+    in norm2d q.x q.y - y
+
   def render (s: state) =
     let rng = s.rng
     let (rng, a) = dist.rand (-1, 1) rng
@@ -99,7 +105,7 @@ module lys : lys with text_content = text_content = {
         (1 + f32.sin (u * 20 * f32.pi + t) * f32.sin (t)) / 2
         + (1 + f32.cos (v * 20 * f32.pi + t) * f32.sin (t)) / 2
       let r_b = f32.sin (u * t + u)
-      in a * r_a + b * r_b
+      in torus 2.5 1.5 p + a * r_a + b * r_b
     let sdf (t: f32) (p: vec3): f32 = vec3.norm p - radius_at t p
     in blob (sdf (accel ** s.time)) s.w s.h
 
